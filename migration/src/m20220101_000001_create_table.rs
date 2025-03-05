@@ -14,7 +14,7 @@ impl MigrationTrait for Migration {
                     .if_not_exists()
                     .col(pk_auto(User::Id))
                     .col(string(User::Name))
-                    .col(string(User::Email))
+                    .col(string(User::Email).unique_key())
                     .col(string(User::Password))
                     .to_owned(),
             )
