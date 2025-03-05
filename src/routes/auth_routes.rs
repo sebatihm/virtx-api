@@ -1,4 +1,4 @@
-use actix_web::error::ErrorUnauthorized;
+use actix_web::error::{ErrorConflict, ErrorUnauthorized};
 use actix_web::http::StatusCode;
 use actix_web::{post, web, HttpResponse};
 use sea_orm::{Condition, EntityTrait, QueryFilter, Set};
@@ -34,22 +34,33 @@ struct LoginModel{
 #[post("/register")]
 pub async fn register(app_state : web::Data<AppState> , register_json: web::Json<RegisterModel>) -> HttpResponse{
 
-    //Creating a new User 
-    let user_model = entity::user::ActiveModel {
-        name: Set(register_json.name.clone()),
-        email: Set(register_json.email.clone()),
-        password : Set(digest(register_json.password.clone())),
-        ..Default::default()
-    //Inserting the user into the database
-    }.insert(&app_state.db).await.unwrap();
+    //Checking availability for email
+    let ocupied = entity::user::Entity::find()
+        .filter(
+            Condition::all()
+                .add(entity::user::Column::Email.eq (&register_json.email))
+    ).one(&app_state.db).await.unwrap();
 
+    if ocupied == None {
+        //Creating a new User 
+        let user_model = entity::user::ActiveModel {
+            name: Set(register_json.name.clone()),
+            email: Set(register_json.email.clone()),
+            password : Set(digest(register_json.password.clone())),
+            ..Default::default()
+        //Inserting the user into the database
+        }.insert(&app_state.db).await.unwrap();
 
+        HttpResponse::Ok()
+            .status(StatusCode::from_u16(201).unwrap())
+            .json(user_model)
+    } else {
+        ErrorConflict("Email already in use").into()
+    }
 
+    
 
-
-    HttpResponse::Ok()
-        .status(StatusCode::from_u16(201).unwrap())
-        .json(user_model)
+    
 }
 
 #[post("/login")]
