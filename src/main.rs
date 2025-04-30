@@ -1,10 +1,11 @@
-use actix_web::{ middleware::Logger, web, App, HttpServer};
+use actix_web::{ middleware::Logger, web::{self, scope}, App, HttpServer};
 use migration::{Migrator, MigratorTrait};
 use utils::app_state::AppState;
 use sea_orm::Database;
 
 pub mod routes;
 pub mod utils;
+pub mod middleware;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -26,9 +27,13 @@ async fn main() -> std::io::Result<()> {
 
     //Connecting to the databaseç
     let db = Database::connect(database_url).await.unwrap();
+    println!("VirtX-API :: Database connection established succesfully");
 
     //Running migrations
     Migrator::up(&db, None).await.unwrap();
+    println!("VirtX-API :: Migrations applied succesfully");
+    println!("VirtX-API :: Starting service on: http://{address}:{port} ");
+
 
 
     HttpServer::new(move || {
@@ -38,9 +43,14 @@ async fn main() -> std::io::Result<()> {
 
             //Adding the logger
             .wrap(Logger::default())
+            .service(scope("/api")
+                //Loading the auth route configurations
+                .configure(routes::auth_routes::config)
 
-            //Loading the auth route configurations
-            .configure(routes::auth_routes::config)
+                //Loading the account settings
+                .configure(routes::account_routes::config)
+            )
+            
             
         
     })

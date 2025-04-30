@@ -1,5 +1,4 @@
 use actix_web::error::{ErrorConflict, ErrorUnauthorized};
-use actix_web::http::StatusCode;
 use actix_web::{post, web, HttpResponse};
 use sea_orm::{Condition, EntityTrait, QueryFilter, Set};
 use sea_orm::ActiveModelTrait;
@@ -8,14 +7,13 @@ use serde::Deserialize;
 use serde::Serialize;
 use sha256::digest;
 
+use crate::utils;
 use crate::utils::app_state::AppState;
 
 pub fn config(config: &mut web::ServiceConfig ){
-    config.service(web::scope("/api")
+    config
         .service(login)
-        .service(register)
-
-    );
+        .service(register);
 }
 
 #[derive(Serialize, Deserialize)]
@@ -51,11 +49,10 @@ pub async fn register(app_state : web::Data<AppState> , register_json: web::Json
         //Inserting the user into the database
         }.insert(&app_state.db).await.unwrap();
 
-        HttpResponse::Ok()
-            .status(StatusCode::from_u16(201).unwrap())
-            .json(user_model)
+        return HttpResponse::Created()
+            .json(user_model);
     } else {
-        ErrorConflict("Email already in use").into()
+        return ErrorConflict("Email already in use").into();
     }
 
     
@@ -77,9 +74,10 @@ pub async fn login(app_state : web::Data<AppState> , login_json: web::Json<Login
     if user_model == None  {
         ErrorUnauthorized("Login error").into()
     }else {
-        HttpResponse::Ok()
-        .status(StatusCode::from_u16(200).unwrap())
-        .body("Login Success")
+        let jwt = utils::jwt::encode_jwt(login_json.email.clone(), user_model.unwrap().id).unwrap();
+
+        return HttpResponse::Ok()
+            .body(format!("token:{jwt}"));
     
     } 
 
