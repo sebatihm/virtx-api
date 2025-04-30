@@ -1,3 +1,4 @@
+use actix_cors::Cors;
 use actix_web::{ middleware::Logger, web::{self, scope}, App, HttpServer};
 use migration::{Migrator, MigratorTrait};
 use utils::app_state::AppState;
@@ -37,10 +38,11 @@ async fn main() -> std::io::Result<()> {
 
 
     HttpServer::new(move || {
+        let cors = Cors::permissive(); 
         App::new()
             //Loading the connection 
             .app_data(web::Data::new(AppState{ db: db.clone()}))
-
+            .wrap(cors)
             //Adding the logger
             .wrap(Logger::default())
             .service(scope("/api")

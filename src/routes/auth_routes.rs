@@ -60,6 +60,11 @@ pub async fn register(app_state : web::Data<AppState> , register_json: web::Json
     
 }
 
+#[derive(Serialize, Deserialize)]
+struct JTW{
+    pub token: String
+}
+
 #[post("/login")]
 pub async fn login(app_state : web::Data<AppState> , login_json: web::Json<LoginModel>) -> HttpResponse{
 
@@ -77,7 +82,7 @@ pub async fn login(app_state : web::Data<AppState> , login_json: web::Json<Login
         let jwt = utils::jwt::encode_jwt(login_json.email.clone(), user_model.unwrap().id).unwrap();
 
         return HttpResponse::Ok()
-            .body(format!("token:{jwt}"));
+            .json(JTW{ token: jwt});
     
     } 
 
