@@ -28,12 +28,16 @@ async fn find_auth_user(req: &HttpRequest, app_state: &AppState) -> Option<Model
     return auth_user;
 }
 
+pub struct Message{
+    pub message: String
+}
+
 #[get("")]
 pub async fn get_account_info(req: HttpRequest, app_state: web::Data<AppState>) -> HttpResponse{
     let user_account = find_auth_user(&req, &app_state).await;
 
     if user_account == None{
-        return HttpResponse::NotFound().body("The user wasn't found");
+        return HttpResponse::NotFound().json("El usuario no fue encontrado");
     }else{
         return HttpResponse::Ok().json(user_account.unwrap());
     }
@@ -50,12 +54,12 @@ pub async fn update_account_info(req: HttpRequest, account_json: web::Json<Accou
     let user_account = find_auth_user(&req, &app_state).await;
 
     if user_account == None{
-        return HttpResponse::NotFound().body("The user wasn't found");
+        return HttpResponse::NotFound().json("El usuario no fue encontrado");
     }else{
 
         if digest(account_json.password.clone()) != user_account.clone().unwrap().password{
-            return HttpResponse::Unauthorized()
-                .body("The credentials do not match");
+            return HttpResponse::BadRequest()
+                .json("Las credenciales no coinciden");
         }
         let mut account: entity::user::ActiveModel = user_account.unwrap().into();
 
@@ -82,12 +86,12 @@ pub async fn change_password(req: HttpRequest, pwd_reset_json: web::Json<Passwor
     let user_account = find_auth_user(&req, &app_state).await;
 
     if user_account == None{
-        return HttpResponse::NotFound().body("The user wasn't found");
+        return HttpResponse::NotFound().json("El usuario no fue encontrado");
     }else{
         let user_account = user_account.unwrap();
         
         if user_account.password != digest(pwd_reset_json.old_password.clone()) {
-            return HttpResponse::Unauthorized().body("The passwords dont match");
+            return HttpResponse::BadRequest().json("Las credenciales no coinciden");
         }
 
         let mut user_account: entity::user::ActiveModel = user_account.into();
@@ -100,21 +104,30 @@ pub async fn change_password(req: HttpRequest, pwd_reset_json: web::Json<Passwor
     }
 }
 
+#[derive(Serialize,Deserialize)]
+struct DeleteForm{
+    pub password: String
+}
 #[delete("")]
-pub async fn delete_account(req: HttpRequest, app_state: web::Data<AppState>) -> HttpResponse{
+pub async fn delete_account(req: HttpRequest, delete_json: web::Json<DeleteForm>, app_state: web::Data<AppState>) -> HttpResponse{
     let user_account = find_auth_user(&req, &app_state).await;
 
     if user_account == None{
-        return HttpResponse::NotFound().body("The user wasn't found");
+        return HttpResponse::NotFound().json("El usuario no fue encontrado");
     }else{
         let user_account = user_account.unwrap();
+
+        if user_account.password != digest(delete_json.password.clone()){
+            return HttpResponse::BadRequest().json("Las credenciales no coinciden");
+        }
+
         let delete_operation = user_account.delete(&app_state.db).await.unwrap();
 
         if delete_operation.rows_affected == 1 {
-            return HttpResponse::NoContent().body("The user was deleted succesfully");
+            return HttpResponse::NoContent().json("Usuario Eliminado Exitosamente");
         }else {
             return HttpResponse::InternalServerError()
-                .body("Something went wrong, while deleting the user");
+                .json("Ha ocurrido un error al tratar de eliminar el usuario");
         }
     }
 }

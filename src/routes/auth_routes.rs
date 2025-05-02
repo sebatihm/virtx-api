@@ -1,4 +1,3 @@
-use actix_web::error::{ErrorConflict, ErrorUnauthorized};
 use actix_web::{post, web, HttpResponse};
 use sea_orm::{Condition, EntityTrait, QueryFilter, Set};
 use sea_orm::ActiveModelTrait;
@@ -52,7 +51,7 @@ pub async fn register(app_state : web::Data<AppState> , register_json: web::Json
         return HttpResponse::Created()
             .json(user_model);
     } else {
-        return ErrorConflict("Email already in use").into();
+        return HttpResponse::Conflict().json("Correo ya en uso");
     }
 
     
@@ -77,7 +76,7 @@ pub async fn login(app_state : web::Data<AppState> , login_json: web::Json<Login
         ).one(&app_state.db).await.unwrap();
 
     if user_model == None  {
-        ErrorUnauthorized("Login error").into()
+        return HttpResponse::Unauthorized().json("Credenciales Incorrectas");
     }else {
         let jwt = utils::jwt::encode_jwt(login_json.email.clone(), user_model.unwrap().id).unwrap();
 
